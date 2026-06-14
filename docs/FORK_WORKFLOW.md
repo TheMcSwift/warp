@@ -105,6 +105,20 @@ gh pr merge <PR编号> --merge -R TheMcSwift/warp
 gh workflow run release-fork.yml -R TheMcSwift/warp --ref release -f tag=v1.0.0
 ```
 
+**快速验证模式**(只验证流水线、不要正式产物时):勾选 `fast=true` → 用 debug profile(无 LTO),比 `oss` LTO 略快;但仍是冷编译,见下方"构建耗时"。
+
+```bash
+gh workflow run release-fork.yml -R TheMcSwift/warp --ref dev -f fast=true
+```
+
+### 构建耗时与缓存
+
+- Warp 是超大 workspace,**首次冷编译约 50 分钟**(免费 runner + 几百个 crate)。
+- 流水线已加 `Swatinem/rust-cache`(固定 `shared-key`、任何分支都保存),所以**之后重复构建只编增量,会快很多**。第一次构建仍是冷编译(同时负责把缓存填上)。
+- 上游 `prepare_environment` 自带的 rust-cache 只在 master 保存,对 fork 分支无效——这正是额外加缓存的原因。
+- 不要用 `windows-latest-large` 等大型 runner 提速:**大型 runner 即使公开仓库也计费**。
+- ✅ 流水线已端到端验证通过,产物为 `WarpOssSetup.exe`(oss channel,独立应用名 WarpOss,不含 Sentry)。
+
 ## F. 监控与排错
 
 ```bash
