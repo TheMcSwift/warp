@@ -51,6 +51,19 @@ jobs:
           is_self_hosted: false
           install_release_deps: true
 
+      # The upstream prepare_environment only SAVES its rust-cache on master, so
+      # fork builds on dev/release are always cold (full recompile of the whole
+      # workspace, ~50 min). This step saves & restores the cache on any branch
+      # (keyed by shared-key), so repeat builds only recompile what changed.
+      - name: Cache Rust build (fork)
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          shared-key: fork-release-windows
+          # Always save (not just on master), and keep partial caches from
+          # builds that fail/time out so progress isn't lost.
+          save-if: "true"
+          cache-on-failure: "true"
+
       # Inno Setup ships on the windows-latest image; make sure ISCC is on PATH.
       - name: Ensure Inno Setup (ISCC) is on PATH
         shell: pwsh
