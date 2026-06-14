@@ -18,5 +18,6 @@
 > 以下为本 fork 在 `WARP.md` 基础上的补充,记录与上游不同的本地约定。
 
 - **开发与发布流程**:完整的分支模型、同步上游、发版步骤见 [`docs/FORK_WORKFLOW.md`](./docs/FORK_WORKFLOW.md)。
+- **低侵入扩展策略**:可扩展点调查 + 侵入性分层(配置/MCP → JS 插件 → 新增 crate → 改源码)见 [`docs/FORK_EXTENSIBILITY.md`](./docs/FORK_EXTENSIBILITY.md)。
 - **工作分支**:默认分支为 `dev`(二开在此进行);`master` 纯镜像上游;`release` 为发布分支。
 - **平台**:本地开发环境为 Windows。`WARP.md` 中部分脚本(`run-clang-format.py`、`bootstrap`、C/Obj-C 相关)面向类 Unix / macOS,在 Windows 上使用时需注意适配。
