@@ -1,0 +1,92 @@
+# Fork-only release workflow.
+#
+# Builds the Windows installer for this fork and publishes it to *this*
+# repository's GitHub Releases. It is intentionally independent from the
+# upstream `create_release.yml` (which depends on Warp's private infra:
+# GCS, Sentry, Apple notarization, self-hosted runners, channel-config repo).
+#
+# Flow: dev --PR--> release. When the PR merges (push to `release`), this
+# workflow builds and publishes. Can also be run manually via the Actions tab.
+#
+# This file is fork-specific and lives only on non-master branches, so it does
+# not conflict with syncing `master` from upstream.
+
+name: Release (fork)
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (leave empty to auto-generate, e.g. fork-v20260614.1)"
+        required: false
+        type: string
+
+concurrency:
+  group: release-fork
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Reuse the upstream composite action. On a fork it gracefully skips the
+      # private SSH key / channel-config steps and falls back to winget for protoc.
+      - uses: ./.github/actions/prepare_environment
+        with:
+          target_os: windows
+          is_self_hosted: false
+          install_release_deps: true
+
+      # Inno Setup ships on the windows-latest image; make sure ISCC is on PATH.
+      - name: Ensure Inno Setup (ISCC) is on PATH
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6"
+          if (-not (Test-Path "$iscc\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+          if (Test-Path "$iscc\ISCC.exe") {
+            Add-Content -Path $env:GITHUB_PATH -Value $iscc
+          }
+
+      - name: Compute release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="fork-v$(date +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+
+      - name: Build Windows installer (oss channel)
+        id: bundle
+        shell: pwsh
+        run: |
+          ./script/windows/bundle.ps1 -CHANNEL oss -RELEASE_TAG "${{ steps.tag.outputs.tag }}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          name: "Warp (fork) ${{ steps.tag.outputs.tag }}"
+          tag_name: ${{ steps.tag.outputs.tag }}
+          body: |
+            Automated Windows build from the `release` branch of this fork.
+
+            - Channel: `oss` (no Sentry / crash reporting)
+            - Commit: ${{ github.sha }}
+          draft: false
+          prerelease: true
+          files: ${{ steps.bundle.outputs.installer_path }}
+          token: ${{ secrets.GITHUB_TOKEN }}
