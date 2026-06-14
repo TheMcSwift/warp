@@ -22,6 +22,11 @@ on:
         description: "Release tag (leave empty to auto-generate, e.g. fork-v20260614.1)"
         required: false
         type: string
+      fast:
+        description: "Fast validation build (debug profile, no LTO — much faster; NOT for distribution)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: release-fork
@@ -74,7 +79,12 @@ jobs:
         id: bundle
         shell: pwsh
         run: |
-          ./script/windows/bundle.ps1 -CHANNEL oss -RELEASE_TAG "${{ steps.tag.outputs.tag }}"
+          $bundleArgs = @('-CHANNEL', 'oss', '-RELEASE_TAG', "${{ steps.tag.outputs.tag }}")
+          if ("${{ inputs.fast }}" -eq "true") {
+            Write-Output "Fast mode: using debug profile (no LTO)"
+            $bundleArgs += '-DEBUG_BUILD'
+          }
+          & ./script/windows/bundle.ps1 @bundleArgs
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
