@@ -79,12 +79,12 @@ jobs:
         id: bundle
         shell: pwsh
         run: |
-          $bundleArgs = @('-CHANNEL', 'oss', '-RELEASE_TAG', "${{ steps.tag.outputs.tag }}")
           if ("${{ inputs.fast }}" -eq "true") {
             Write-Output "Fast mode: using debug profile (no LTO)"
-            $bundleArgs += '-DEBUG_BUILD'
+            ./script/windows/bundle.ps1 -CHANNEL oss -RELEASE_TAG "${{ steps.tag.outputs.tag }}" -DEBUG_BUILD
+          } else {
+            ./script/windows/bundle.ps1 -CHANNEL oss -RELEASE_TAG "${{ steps.tag.outputs.tag }}"
           }
-          & ./script/windows/bundle.ps1 @bundleArgs
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
